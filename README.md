@@ -113,14 +113,4 @@ sword/
 
 ---
 
-## 🎓 Viva & Live-Edit Readiness
-Every function in the project was intentionally engineered for an academic computer graphics viva:
-- **No Function Exceeds ~40 Lines**: Every function fits comfortably on a single screen without scrolling.
-- **Zero Magic Numbers Outside `config.py`**: Changing `GRAVITY`, `PLAYER_SPEED`, `SWORD_RANGE`, `SWORD_COOLDOWN`, `CAMERA_FOLLOW_SPEED`, or `TRANSITION_DURATION` in [`src/core/config.py`](file:///src/core/config.py) instantly modifies gameplay live in front of the examiner.
-- **Mandatory 3-Line Bangla Comments**: Every function and non-trivial block includes:
-  ```python
-  # কী করছে: <what this code does>
-  # কেন লাগছে: <why it's needed>
-  # real world-এ এটা কোথায় দেখা যায়: <real-world system using this technique>
-  ```
-- **Single-Function Deletion Clarity**: Removing any single function produces an obvious, easily explainable visual effect (e.g., removing `_draw_legs` removes character limbs, removing `clip_line` demonstrates lines rendering beyond the camera boundary).
+
