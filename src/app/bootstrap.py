@@ -31,11 +31,42 @@ scene_manager = SceneManager()
 _last_frame_time = 0.0
 
 
-# কী করছে: ভিউপোর্ট এবং ২ডি অর্থোগ্রাফিক প্রজেকশন ম্যাট্রিক্স সেট আপ করে।
-# কেন লাগছে: পিক্সেল-পারফেক্ট ২ডি স্থানাঙ্ক ব্যবস্থায় গ্রাফিক্স প্রদর্শন করতে।
+# গ্লোবাল ভিউপোর্ট ভ্যারিয়েবল
+window_w = SCREEN_WIDTH
+window_h = SCREEN_HEIGHT
+viewport_x = 0
+viewport_y = 0
+viewport_w = SCREEN_WIDTH
+viewport_h = SCREEN_HEIGHT
+
+
+# কী করছে: অ্যাসপেক্ট রেশিও বজায় রেখে লেটারবক্স ভিউপোর্ট ও অর্থোগ্রাফিক প্রজেকশন সেট আপ করে।
+# কেন লাগছে: উইন্ডো বড় করলেও গ্রাফিক্স না ছড়িয়ে সঠিক অনুপাতে সুন্দরভাবে প্রদর্শন করতে।
 # real world-এ এটা কোথায় দেখা যায়: ২ডি গেম ক্যামেরা ও অর্থোগ্রাফিক প্রজেকশন পাইপলাইন।
 def setup_projection(width: int, height: int):
-    glViewport(0, 0, width, height)
+    global window_w, window_h, viewport_x, viewport_y, viewport_w, viewport_h
+    width = max(1, width)
+    height = max(1, height)
+    window_w = width
+    window_h = height
+
+    target_aspect = float(SCREEN_WIDTH) / float(SCREEN_HEIGHT)
+    window_aspect = float(width) / float(height)
+
+    if window_aspect >= target_aspect:
+        viewport_h = height
+        viewport_w = int(height * target_aspect)
+        viewport_x = int((width - viewport_w) * 0.5)
+        viewport_y = 0
+    else:
+        viewport_w = width
+        viewport_h = int(width / target_aspect)
+        viewport_x = 0
+        viewport_y = int((height - viewport_h) * 0.5)
+
+    global_input.update_viewport(viewport_x, viewport_y, viewport_w, viewport_h, window_h)
+
+    glViewport(viewport_x, viewport_y, viewport_w, viewport_h)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
     glOrtho(0.0, float(SCREEN_WIDTH), 0.0, float(SCREEN_HEIGHT), -1.0, 1.0)
@@ -43,12 +74,16 @@ def setup_projection(width: int, height: int):
     glLoadIdentity()
 
 
-# কী করছে: ওপেনজিএল ডিসপ্লে কলব্যাক যাতে প্রতি ফ্রেমে সিন রেন্ডার হয়।
-# কেন লাগছে: ফ্রেম বাফার ক্লিয়ার করা এবং স্ক্রিনে গ্রাফিক্স আঁকার জন্য।
+# কী করছে: পুরো উইন্ডো ক্লিয়ার করে গেম ভিউপোর্টে সিন রেন্ডার করে।
+# কেন লাগছে: উইন্ডো রিসাইজ হলেও চারপাশের মার্জিনসহ নিখুঁতভাবে ফ্রেম প্রদর্শন করতে।
 # real world-এ এটা কোথায় দেখা যায়: ভিডিও গেম রেন্ডার পাস এক্সিকিউশন।
 def display_callback():
-    glClearColor(0.07, 0.08, 0.11, 1.0)
+    glViewport(0, 0, window_w, window_h)
+    glClearColor(0.05, 0.06, 0.08, 1.0)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+    glViewport(viewport_x, viewport_y, viewport_w, viewport_h)
+    glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
     scene_manager.draw()
@@ -80,6 +115,7 @@ def timer_callback(_):
 # real world-এ এটা কোথায় দেখা যায়: উইন্ডো ডিসপ্লে রেজোলিউশন অ্যাডাপ্টার।
 def reshape_callback(width: int, height: int):
     setup_projection(width, height)
+    glutPostRedisplay()
 
 
 # কী করছে: সাধারণ কিবোর্ড ডাউন ইভেন্ট ইনপুট হ্যান্ডলারে পাঠায়।

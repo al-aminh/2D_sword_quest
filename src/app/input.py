@@ -4,11 +4,12 @@
 # real world-এ এটা কোথায় দেখা যায়: ইনপুট অ্যাবস্ট্রাকশন লেয়ার (যেমন SDL2 / GLFW Input Handling)।
 """
 
+from typing import Tuple
 from OpenGL.GLUT import (
     GLUT_KEY_LEFT, GLUT_KEY_RIGHT, GLUT_KEY_UP, GLUT_KEY_DOWN,
     GLUT_LEFT_BUTTON, GLUT_DOWN, GLUT_UP
 )
-from src.core.config import SCREEN_HEIGHT
+from src.core.config import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 class InputState:
@@ -18,7 +19,7 @@ class InputState:
     # real world-এ এটা কোথায় দেখা যায়: গেম ইঞ্জিনের ইনপুট ম্যানেজার (Input Manager System)।
     """
 
-    # কী করছে: ইনপুট স্টেট ভেরিয়েবলগুলো ইনিশিয়ালাইজ করে।
+    # কী করছে: ইনপুট স্টেট ভেরিয়েবল ও প্রাথমিক ভিউপোর্ট স্কেলিং ইনিশিয়ালাইজ করে।
     # কেন লাগছে: প্রারম্ভিক কিবোর্ড ও মাউস স্থিতি শূন্য অবস্থায় সেট করতে।
     # real world-এ এটা কোথায় দেখা যায়: ইনপুট সিস্টেম ইনিশিয়ালাইজেশন।
     def __init__(self):
@@ -28,6 +29,32 @@ class InputState:
         self.mouse_y = 0.0
         self.mouse_left_down = False
         self.mouse_left_clicked = False
+        self.vp_x = 0.0
+        self.vp_y = 0.0
+        self.vp_w = float(SCREEN_WIDTH)
+        self.vp_h = float(SCREEN_HEIGHT)
+        self.win_h = float(SCREEN_HEIGHT)
+
+    # কী করছে: উইন্ডো রিসাইজ হলে বর্তমান ভিউপোর্ট মান আপডেট করে।
+    # কেন লাগছে: ফুলস্ক্রিন বা বড় উইন্ডোতেও মাউস স্থানাঙ্ক সঠিকভাবে রূপান্তর করতে।
+    # real world-এ এটা কোথায় দেখা যায়: ভিউপোর্ট টু ভার্চুয়াল স্ক্রিন কোঅর্ডিনেট ম্যাপিং।
+    def update_viewport(self, vx: int, vy: int, vw: int, vh: int, win_h: int):
+        self.vp_x = float(vx)
+        self.vp_y = float(vy)
+        self.vp_w = float(vw) if vw > 0 else 1.0
+        self.vp_h = float(vh) if vh > 0 else 1.0
+        self.win_h = float(win_h) if win_h > 0 else 1.0
+
+    # কী করছে: উইন্ডোর মাউস পিক্সেলকে গেমের ভার্চুয়াল ২ডি কোঅর্ডিনেটে রূপান্তর করে।
+    # কেন লাগছে: উইন্ডো বড় বা ছোট করলেও বাটন ক্লিক ও হোভার যাতে সঠিক জায়গায় থাকে।
+    # real world-এ এটা কোথায় দেখা যায়: GUI Resolution Independent Scaling / Input Mapping।
+    def _transform_mouse_coords(self, raw_x: float, raw_y: float) -> Tuple[float, float]:
+        y_from_bot = self.win_h - raw_y
+        norm_x = (raw_x - self.vp_x) / self.vp_w
+        norm_y = (y_from_bot - self.vp_y) / self.vp_h
+        vx = max(0.0, min(float(SCREEN_WIDTH), norm_x * float(SCREEN_WIDTH)))
+        vy = max(0.0, min(float(SCREEN_HEIGHT), norm_y * float(SCREEN_HEIGHT)))
+        return vx, vy
 
     # কী করছে: প্রতিটি ফ্রেমের শেষে ওয়ান-শট ইভেন্টগুলো ক্লিয়ার করে।
     # কেন লাগছে: একক ক্লিক বা কি-প্রেস যাতে একাধিকবার ট্রিগার না হয়।
@@ -67,12 +94,11 @@ class InputState:
             else:
                 self.keys_down.discard(name)
 
-    # কী করছে: মাউসের কার্সার পজিশন ও ক্লিক স্টেট ট্র্যাক করে।
-    # কেন লাগছে: ইউআই বোতামের হোভার এবং ক্লিক রেজিস্টার করতে।
+    # কী করছে: মাউসের ক্লিক ইভেন্ট ভার্চুয়াল কোঅর্ডিনেটে রূপান্তর করে সংরক্ষণ করে।
+    # কেন লাগছে: যে কোনো সাইজের উইন্ডোতে ইউআই বাটন ক্লিক নিখুঁতভাবে রেজিস্টার করতে।
     # real world-এ এটা কোথায় দেখা যায়: উইন্ডোজ ও ম্যাক ওএস মাউস পয়েন্টার ট্র্যাকিং।
     def handle_mouse(self, button, state, x, y):
-        self.mouse_x = float(x)
-        self.mouse_y = float(SCREEN_HEIGHT - y)
+        self.mouse_x, self.mouse_y = self._transform_mouse_coords(float(x), float(y))
         if button == GLUT_LEFT_BUTTON:
             if state == GLUT_DOWN:
                 self.mouse_left_down = True
@@ -80,12 +106,11 @@ class InputState:
             elif state == GLUT_UP:
                 self.mouse_left_down = False
 
-    # কী করছে: মাউস সরানোর সাথে সাথে কোঅর্ডিনেট আপডেট করে।
-    # কেন লাগছে: মাউসের প্যাসিভ মোশন ধরে বাটনের স্মুথ হোভার অ্যানিমেশন দিতে।
+    # কী করছে: মাউস নাড়ালে ভার্চুয়াল কোঅর্ডিনেট হিসেব করে আপডেট করে।
+    # কেন লাগছে: উইন্ডো বড় করলেও বাটনের ওপর কার্সার আনলে হোভার প্রতিক্রিয়া পেতে।
     # real world-এ এটা কোথায় দেখা যায়: ডেক্সটপ উইন্ডো ম্যানেজার মাউস মুভ ডিসপ্যাচ।
     def handle_mouse_motion(self, x, y):
-        self.mouse_x = float(x)
-        self.mouse_y = float(SCREEN_HEIGHT - y)
+        self.mouse_x, self.mouse_y = self._transform_mouse_coords(float(x), float(y))
 
     # কী করছে: বাইটস কিবোর্ড কোডকে সাধারণ টেক্সট স্ট্রিং-এ রূপান্তর করে।
     # কেন লাগছে: প্ল্যাটফর্ম বা পাইথন সংস্করণের ভিন্নতায় সঠিক কি ম্যাপিং করতে।
